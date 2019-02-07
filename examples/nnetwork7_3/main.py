@@ -21,8 +21,9 @@ if __name__ == '__main__':
     lb = [-1,-1,-1]
     ub = [1,1,1]
 
-    # no memory optimization
-    nnet = nnet.nnetwork(W, b, False)
+    # memory optimization
+    #nnet = nnet.nnetwork(W, b, False)
+    nnet = nnet.nnetwork(W, b, True)
 
     cube_lattice = cl.CubeLattice(lb, ub)
     initial_input = cube_lattice.to_poly_lattice()

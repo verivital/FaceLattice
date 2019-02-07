@@ -1,0 +1,3 @@
+time elapsed: 2.472385 seconds 
+memory occupied: 0.093692 Gb 
+number of polytopes: 1250 

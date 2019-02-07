@@ -6,8 +6,10 @@ import psutil
 import time
 import nnet
 import pickle
+import numpy as np
 import FFNN as ffnn
 import CubeLattice as cl
+import matlab.engine
 from scipy.io import loadmat
 
 
@@ -49,5 +51,39 @@ if __name__ == '__main__':
     file.write('memory occupied: %f Gb \n' % (process.memory_info().rss/1e+9))
     file.write('number of polytopes: %d \n' % len(outputSets))
     file.close()
+
+
+    ## MATLAB PLOT
+    print("Plotting in Matlab")
+    VerticeSets = []
+    for pg in outputSets:
+        li = []
+        for v in pg.vertex:
+            v_array = np.dot(pg.M, np.array([v]).transpose())
+            v_real = tuple(np.add(v_array, pg.b).transpose()[0, :])
+            li.append(tuple(v_real))
+        VerticeSets.append(li)
+
+    # change to python float64 from np.float64
+    for id_v, Vs in enumerate(VerticeSets):
+        for id_p, ps in enumerate(Vs):
+            ps_list = list(ps)
+            for id_e, el in enumerate(ps_list):
+                if type(el) == int:
+                    ps_list[id_e] = float(el)
+                else:
+                    ps_list[id_e] = el.item()
+            VerticeSets[id_v][id_p] = tuple(ps_list)
+
+    outputPoints = []
+    for i in range(1000):
+        x = [np.random.rand() * (ub[i] - lb[i]) + lb[i] for i in range(len(lb))]
+        x = np.array([x])
+
+        outputPoints.extend((nnet.outputPoint(x)).tolist())
+
+    eng = matlab.engine.start_matlab()
+    mat = matlab.double(outputPoints)
+    eng.testfun(VerticeSets, mat, nargout=0)
 
 

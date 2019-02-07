@@ -21,17 +21,19 @@ if __name__ == '__main__':
     lb = [-1,-1,-1]
     ub = [1,1,1]
 
-    # memory optimization
-    #nnet = nnet.nnetwork(W, b, False)
-    nnet = nnet.nnetwork(W, b, True)
 
+    #nnet = nnet.nnetwork(W, b, False) # no memory optimization
+    nnet = nnet.nnetwork(W, b, True) # memory optimization
+
+    # generate the input set
     cube_lattice = cl.CubeLattice(lb, ub)
     initial_input = cube_lattice.to_poly_lattice()
 
     start_time = time.time()
 
-    # no parallel
-    outputSets = ffnn.nnet_output(nnet, initial_input, )
+    # generate the out set of NN
+    #outputSets = ffnn.nnet_output(nnet, initial_input, ) # no parallel
+    outputSets = ffnn.nnet_output(nnet, initial_input, ("parallel", 4)) # parallel with 4 cores
 
     # time elapsed
     elapsed_time = time.time() - start_time

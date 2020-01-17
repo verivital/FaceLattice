@@ -1,3 +1,4 @@
 # FaceLattice
 
-Run the main.py in examples/nnetwork7_3 for testing
+Run "run_property34.sh" to test all the 45 networks on Property 3 and 4.
+Check the results in the "logs" folder.

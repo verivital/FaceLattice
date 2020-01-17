@@ -1,19 +1,37 @@
 import numpy as np
+import time
+import os
+import sys
+import psutil
+import pickle
+import multiprocessing
+from functools import partial
+from multiprocessing import get_context
 
 
 class nnetwork:
 
-    def __init__(self, W, b, mr= "normal"):
+    def __init__(self, W, b):
         self.W = W
         self.b = b
+        self.c = 0
         self.numLayer = len(W)
-        self.memory_reduce = mr
+        self.output_type = 0 # "number_of_output", "output_polytopes"
+        self.pool = multiprocessing.Pool(1) # multiprocessing
 
     # nn output of input starting from mth layer
-    def layerOutput(self, inputSets, m):
+    def layerOutput(self, inputPoly, m):
+        # print('Layer: ',m)
+
+        inputSets = [inputPoly]
         for i in range(m, self.numLayer):
-            inputSets = self.singleLayerOutput(inputSets, i)
+            outputPolys = []
+            for aPoly in inputSets:
+                outputPolys.extend(self.singleLayerOutput(aPoly, i))
+            inputSets = outputPolys
+
         return inputSets
+
 
     # point output of nn
     def outputPoint(self, inputPoint):
@@ -33,41 +51,60 @@ class nnetwork:
             layerPoint[layerPoint<0] = 0
             return layerPoint.transpose()
 
-    # polytope-set output of single layer
-    def singleLayerOutput(self, inputGraphSets, layerID):
+
+    # polytope output of single layer
+    def singleLayerOutput(self, inputPoly, layerID):
         # print("layer", layerID)
-        if type(inputGraphSets) != list:
-            inputGraphSets = [inputGraphSets]
+        # inputPoly = shared_inputSets[inputSets_index]
         W = self.W[layerID]
         b = self.b[layerID]
         numNeuron = b.shape[0]
-        layerGraphSets = [inputGraph.linearTrans(W, b) for inputGraph in inputGraphSets]
+        inputPoly.linearTrans(W, b)
 
         # partition graph sets according to properties of the relu function
         if layerID == self.numLayer-1:
-            return layerGraphSets
-        else:
-            for i in range(numNeuron):
-                # print('i',i)
-                layerGraphSets = self.splitPoly(layerGraphSets, numNeuron, i)
+            if self.output_type == 0:
+                inputPoly.lattice = []
+                inputPoly.ref_vertex = {}
+                return [inputPoly]
 
-            return layerGraphSets
+            if self.output_type == 1:
+                return [inputPoly]
 
-    # partition the input set of graphs with planes
-    def splitPoly(self, inputGraphSets,numNeuron, idx):
+        # #
+        polys = [inputPoly]
+        for i in range(numNeuron):
+            splited_polys = []
+            for aPoly in polys:
+                splited_polys.extend(self.splitPoly(aPoly, i))
+
+            polys = splited_polys
+
+        return polys
+
+
+    # partition one input polytope with a hyberplane
+    def splitPoly(self, inputPoly, idx):
         outputPolySets = []
-        for inputGraph in inputGraphSets:
 
-            pPolyG, nPolyG = inputGraph.intersectPlane(idx)
+        pPolyG, nPolyG, t = inputPoly.intersectPlane(idx)
+        self.c = self.c+t
 
-            if pPolyG:
-                outputPolySets.append(pPolyG)
+        if pPolyG:
+            outputPolySets.append(pPolyG)
 
-            if nPolyG:
-                nPolyG_new = nPolyG.map_negative_poly(idx, self.memory_reduce)
-                outputPolySets.append(nPolyG_new)
+        if nPolyG:
+            nPolyG_new = nPolyG.map_negative_poly(idx)
+            outputPolySets.append(nPolyG_new)
 
         return outputPolySets
 
 
 
+    def __getstate__(self):
+        self_dict = self.__dict__.copy()
+        del self_dict['pool']
+        return self_dict
+
+    def __setstate__(self, state):
+        self.__dict__.update(state)
